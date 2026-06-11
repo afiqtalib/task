@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Kalkulator Pinjaman Kereta (Reducing Balance)</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧮</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 30px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 500px;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin: auto;
+        }
+    
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+    
+        .input-group {
+            margin-bottom: 15px;
+        }
+    
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    
+        .input-group input {
+            width: 100%;
+            height: 50px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-sizing: border-box;
+        }
+
+        .input-group input[readonly] {
+            background-color: transparent;
+            border: 1px solid #ccc;
+            outline: none;
+            box-shadow: none;
+            color: #682860;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .input-group input:focus {
+            border: 2px solid #682860;
+            outline: none;
+            box-shadow: 0 0 5px rgba(104, 40, 96, 0.1);
+        }
+    
+        .btn-primary {
+            width: 100%;
+            padding: 20px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    
+        .btn-primary:hover {
+            background-color: #219653;
+        }
+    
+        .result-section {
+            margin-top: 30px;
+        }
+    
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+    
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: center;
+        }
+    
+        th {
+            background-color: #663399;
+            color: white;
+            font-size: 12px;
+        }
+    
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    
+        .total-highlight {
+            font-weight: bold;
+            background-color: #e8f8f5 !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Kalkulator Pinjaman Kereta <br><small>(Reducing Balance Method)</small></h2>
+    
+    <div class="input-group">
+        <label>Harga Kereta (RM):</label>
+        <input type="number" id="carPrice" value="57000" placeholder="Contoh: 57000">
+    </div>
+    
+    <div class="input-group">
+        <label>Deposit (RM):</label>
+        <input type="number" id="deposit" value="20000" placeholder="Contoh: 20000">
+    </div>
+
+    <div class="input-group">
+        <label>Total Pinjaman (RM):</label>
+        <input type="number" id="totalLoan" value="Belum Dikira" readonly>
+    </div>
+
+    
+    <div class="input-group">
+        <label>Tempoh Pinjaman (Tahun):</label>
+        <input type="number" id="tenure" value="9" placeholder="Contoh: 9">
+    </div>
+    
+    <div class="input-group">
+        <label>Kadar Faedah Tahunan (%):</label>
+        <input type="number" step="0.01" id="interestRate" value="2.73" placeholder="Contoh: 2.73">
+    </div>
+    <pre class="bg-dark text-light border rounded mb-0">
+        <code>
+        PMT = P * [r(1+r)^n] / [(1+r)^n - 1]
+        </code>
+    </pre>
+
+    <button class="btn btn-primary" onclick="kiraPinjaman()">Kira Sekarang</button>
+
+    <div class="result-section" id="results" style="display:none;">
+        <h3>Ringkasan</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tahun</th>
+                    <th>Purata Bulanan (RM)</th>
+                    <th>Jumlah Faedah/Year (RM)</th>
+                    <th>Jumlah Pokok/Year (RM)</th>
+                    <th>Baki Pinjaman (RM)</th>
+                </tr>
+            </thead>
+            <tbody id="resultBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function kiraPinjaman() {
+        const hargaKereta = parseFloat(document.getElementById('carPrice').value) || 0;
+        const deposit = parseFloat(document.getElementById('deposit').value) || 0;
+        const tahun = parseInt(document.getElementById('tenure').value) || 0;
+        const kadarTahunan = parseFloat(document.getElementById('interestRate').value) || 0;
+
+        // 2. Kira jumlah pinjaman asal (Principal)
+        let bakiPinjaman = hargaKereta - deposit;
+        document.getElementById('totalLoan').value = bakiPinjaman.toFixed(2);
+
+        if (hargaKereta <= 0) {
+            swalAlert('error', 'Sila masukkan harga kereta!');
+            hideResults();
+            return;
+        }
+
+        if (deposit >= hargaKereta) {
+            swalAlert('warning', 'Deposit tidak boleh melebihi atau sama dengan harga kereta!');
+            hideResults();
+            return;
+        }
+
+        if (tahun <= 0) {
+            swalAlert('error', 'Sila masukkan tempoh pinjaman (tahun)!');
+            hideResults();
+            return;
+        }
+
+        if (kadarTahunan <= 0) {
+            swalAlert('error', 'Sila masukkan kadar faedah tahunan!');
+            hideResults();
+            return;
+        }
+        
+
+        const kadarBulanan = (kadarTahunan / 100) / 12;
+        const jumlahBulan = tahun * 12;
+
+        // Formula Amortization untuk bayaran bulanan tetap (Reducing Balance)
+        // PMT = P * [r(1+r)^n] / [(1+r)^n - 1]
+        const bayaranBulananTetap = bakiPinjaman * (kadarBulanan * Math.pow(1 + kadarBulanan, jumlahBulan)) / (Math.pow(1 + kadarBulanan, jumlahBulan) - 1);
+
+        let html = '';
+        let totalInterestKeseluruhan = 0;
+        let totalBayaranKeseluruhan = 0;
+
+        // Loop untuk setiap tahun
+        for (let t = 1; t <= tahun; t++) {
+            let faedahTahunIni = 0;
+            let pokokTahunIni = 0;
+            let jumlahBayaranTahunIni = 0;
+
+            // Loop 12 bulan untuk tahun tersebut
+            for (let m = 1; m <= 12; m++) {
+                let faedahBulanIni = bakiPinjaman * kadarBulanan;
+                let pokokBulanIni = bayaranBulananTetap - faedahBulanIni;
+
+                faedahTahunIni += faedahBulanIni;
+                pokokTahunIni += pokokBulanIni;
+                jumlahBayaranTahunIni += bayaranBulananTetap;
+                
+                bakiPinjaman -= pokokBulanIni;
+            }
+
+            totalInterestKeseluruhan += faedahTahunIni;
+            totalBayaranKeseluruhan += jumlahBayaranTahunIni;
+
+            // Masukkan data tahunan ke dalam table
+            html += `<tr>
+                <td>${t}</td>
+                <td>${(jumlahBayaranTahunIni / 12).toFixed(2)}</td>
+                <td>${faedahTahunIni.toFixed(2)}</td>
+                <td>${pokokTahunIni.toFixed(2)}</td>
+                <td>${Math.max(0, bakiPinjaman).toFixed(2)}</td>
+            </tr>`;
+        }
+
+        // Tambah baris jumlah keseluruhan kat bawah sekali
+        html += `<tr class="total-highlight">
+            <td>TOTAL</td>
+            <td>-</td>
+            <td>${totalInterestKeseluruhan.toFixed(2)}</td>
+            <td>${(hargaKereta - deposit).toFixed(2)}</td>
+            <td>0.00</td>
+        </tr>`;
+
+        // Paparkan result
+        document.getElementById('resultBody').innerHTML = html;
+        document.getElementById('results').style.display = 'block';
+    }
+
+    function hideResults() {
+        document.getElementById('totalLoan').value = "0.00";
+        document.getElementById('results').style.display = 'none';
+    }
+
+    function swalAlert(icon, message) {
+        Swal.fire({
+            icon: icon,
+            title: 'Oops...',
+            html: message,
+            confirmButtonColor: '#3085d6'
+        });
+    }
+
+</script>
+
+</body>
+</html>

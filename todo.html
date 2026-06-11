@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Tasks</title>
+    
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 CSS untuk UI Cepat & Kemas -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .todo-container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .task-done {
+            text-decoration: line-through;
+            color: #286e40;
+            /* color: #adb5bd; */
+        }
+        .list-group-item {
+            transition: all 0.2s ease;
+            border: 1px solid #edf2f7;
+            margin-bottom: 8px;
+            border-radius: 8px !important;
+        }
+        .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+        .btn-add {
+            background-color: #4f46e5;
+            color: white;
+        }
+        .btn-add:hover {
+            background-color: #4338ca;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="todo-container">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-dark">🎯 My Tasks</h2>
+            <p class="text-muted small" id="currentDate"></p>
+        </div>
+
+        <form id="todoForm" class="row g-2 mb-4">
+            <div class="col-9">
+                <input type="text" id="taskInput" class="form-control form-control-lg" placeholder="Add New Task..." autocomplete="off">
+            </div>
+            <div class="col-3 d-grid">
+                <button type="submit" class="btn btn-add btn-lg"><i class="bi bi-plus-lg"></i></button>
+            </div>
+        </form>
+
+        <ul class="list-group" id="taskList">
+            <!-- Task akan dimasukkan di sini secara dinamik -->
+        </ul>
+
+        <div class="text-end mt-4 pt-3 border-top">
+            <button id="clearAllBtn" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash3"></i> Clear All
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- jQuery & Bootstrap JS -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    $(document).ready(function() {
+        // 1. Paparkan tarikh hari ini
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const today = new Date().toLocaleDateString('en-US', options);
+        $('#currentDate').text(today);
+
+        // 2. Load task lama dari LocalStorage (jika ada)
+        loadTasks();
+
+        // 3. Fungsi Tambah Task
+        $('#todoForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            let taskText = $('#taskInput').val().trim();
+            if(taskText === '') {
+                $('#taskInput').addClass('is-invalid');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Empty Task',
+                    text: 'Please enter a task before adding.',
+                    confirmButtonColor: '#4f46e5'
+                });
+                return;
+            }
+
+            let tasks = getTasksFromStorage();
+            tasks.push({ text: taskText, done: false });
+            
+            saveTasksToStorage(tasks);
+            renderTasks(tasks);
+
+            $('#taskInput').removeClass('is-invalid');
+            $('#taskInput').val(''); // Clear input
+        });
+
+        // 4. Fungsi Toggle Checkbox (Tanda Selesai)
+        $(document).on('change', '.task-checkbox', function() {
+            let index = $(this).closest('li').data('index');
+            let tasks = getTasksFromStorage();
+            
+            tasks[index].done = $(this).is(':checked');
+            
+            saveTasksToStorage(tasks);
+            renderTasks(tasks);
+        });
+
+        // 5. Fungsi Padam Satu Task
+        $(document).on('click', '.delete-btn', function() {
+            let index = $(this).closest('li').data('index');
+            let tasks = getTasksFromStorage();
+            
+            tasks.splice(index, 1); // Buang task dari array
+            
+            saveTasksToStorage(tasks);
+            renderTasks(tasks);
+        });
+
+        // 6. Fungsi Reset / Padam Semua
+        $('#clearAllBtn').on('click', function() {
+            swal.fire({
+                title: 'Are you sure?',
+                text: "This will delete all your tasks for today!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, clear all!',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    localStorage.removeItem('dailyTasks');
+                    renderTasks([]);
+                    Swal.fire(
+                        'Cleared!',
+                        'All your tasks have been deleted.',
+                        'success'
+                    );
+                }
+            });
+        });
+
+        // --- FUNGSI UTAMA (HELPER) ---
+        function getTasksFromStorage() {
+            let tasks = localStorage.getItem('dailyTasks');
+            return tasks ? JSON.parse(tasks) : [];
+        }
+
+        function saveTasksToStorage(tasks) {
+            localStorage.setItem('dailyTasks', JSON.stringify(tasks));
+        }
+
+        function loadTasks() {
+            let tasks = getTasksFromStorage();
+            renderTasks(tasks);
+        }
+
+        function renderTasks(tasks) {
+            let $taskList = $('#taskList');
+            $taskList.empty();
+
+            if(tasks.length === 0) {
+                $taskList.append('<li class="text-center text-muted py-3 list-unstyled">No tasks left. Enjoy your day! 😎</li>');
+                return;
+            }
+
+            tasks.forEach((task, index) => {
+                let checkedAttr = task.done ? 'checked' : '';
+                let textClass = task.done ? 'task-done' : '';
+
+                let listItem = `
+                    <li class="list-group-item d-flex justify-content-between align-items-center" data-index="${index}">
+                        <div class="form-check d-flex align-items-center m-0">
+                            <input class="form-check-input task-checkbox me-3" type="checkbox" ${checkedAttr} style="transform: scale(1.2); cursor:pointer;">
+                            <label class="form-check-label ${textClass}" style="cursor:pointer;">
+                                ${task.text}
+                            </label>
+                        </div>
+                        <button class="btn btn-sm btn-danger text-white delete-btn"><i class="bi bi-trash3"></i></button>
+                    </li>
+                `;
+                $taskList.append(listItem);
+            });
+        }
+    });
+</script>
+</body>
+</html>
